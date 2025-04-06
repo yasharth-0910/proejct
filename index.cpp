@@ -1,200 +1,227 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-// -------------------- TEMPLATE START --------------------
-
-// Ford-Fulkerson Algorithm for Maximum Flow
-class MaxFlow {
-    int V;
-    vector<vector<int>> capacity;
-    vector<vector<int>> adj;
-
-public:
-    MaxFlow(int vertices) : V(vertices), capacity(vertices, vector<int>(vertices, 0)), adj(vertices) {}
-
-    void addEdge(int u, int v, int cap) {
-        adj[u].push_back(v);
-        adj[v].push_back(u);
-        capacity[u][v] = cap;
-    }
-
-    int bfs(int s, int t, vector<int>& parent) {
-        fill(parent.begin(), parent.end(), -1);
-        parent[s] = -2;
-        queue<pair<int, int>> q;
-        q.push({s, INT_MAX});
-
-        while (!q.empty()) {
-            int cur = q.front().first;
-            int flow = q.front().second;
-            q.pop();
-
-            for (int next : adj[cur]) {
-                if (parent[next] == -1 && capacity[cur][next] > 0) {
-                    parent[next] = cur;
-                    int new_flow = min(flow, capacity[cur][next]);
-                    if (next == t) return new_flow;
-                    q.push({next, new_flow});
-                }
-            }
+// 1. Minimum Coin Change (Greedy)
+// Time: O(n log n + amount), Space: O(amount)
+void minCoinChange(int coins[], int n, int amount) {
+    sort(coins, coins + n, greater<int>()); // O(n log n)
+    vector<int> result;
+    for (int i = 0; i < n && amount > 0; ++i) {
+        while (amount >= coins[i]) {
+            amount -= coins[i];
+            result.push_back(coins[i]);
         }
-        return 0;
     }
+    cout << "Coins used: ";
+    for (int c : result) cout << c << " ";
+    cout << endl;
+}
 
-    int fordFulkerson(int s, int t) {
-        int max_flow = 0;
-        vector<int> parent(V);
-        int new_flow;
+// 2. Fractional Knapsack (Greedy)
+// Time: O(n log n), Space: O(1)
+struct Item {
+    int value, weight;
+    Item(int v, int w) : value(v), weight(w) {}
+};
 
-        while ((new_flow = bfs(s, t, parent))) {
-            max_flow += new_flow;
-            int cur = t;
-            while (cur != s) {
-                int prev = parent[cur];
-                capacity[prev][cur] -= new_flow;
-                capacity[cur][prev] += new_flow;
-                cur = prev;
-            }
+bool cmp(Item a, Item b) {
+    double r1 = (double)a.value / a.weight;
+    double r2 = (double)b.value / b.weight;
+    return r1 > r2;
+}
+
+double fractionalKnapsack(int W, vector<Item> items) {
+    sort(items.begin(), items.end(), cmp);
+    double totalValue = 0.0;
+    for (auto &item : items) {
+        if (W >= item.weight) {
+            W -= item.weight;
+            totalValue += item.value;
+        } else {
+            totalValue += item.value * ((double)W / item.weight);
+            break;
         }
-        return max_flow;
+    }
+    return totalValue;
+}
+
+// 3. Activity Selection (Greedy)
+// Time: O(n log n), Space: O(1)
+struct Activity {
+    int start, end;
+};
+
+bool activityCmp(Activity a, Activity b) {
+    return a.end < b.end;
+}
+
+void activitySelection(vector<Activity> &activities) {
+    sort(activities.begin(), activities.end(), activityCmp);
+    cout << "Selected Activities: \n";
+    int lastEnd = -1;
+    for (auto act : activities) {
+        if (act.start >= lastEnd) {
+            cout << "(" << act.start << ", " << act.end << ")\n";
+            lastEnd = act.end;
+        }
+    }
+}
+
+// 4. Huffman Encoding (Greedy + String)
+// Time: O(n log n), Space: O(n)
+struct HuffNode {
+    char ch;
+    int freq;
+    HuffNode *left, *right;
+    HuffNode(char c, int f) : ch(c), freq(f), left(NULL), right(NULL) {}
+};
+
+struct compareHuff {
+    bool operator()(HuffNode* a, HuffNode* b) {
+        return a->freq > b->freq;
     }
 };
 
-// Edmonds-Karp Algorithm (BFS-based Ford-Fulkerson)
-int edmondsKarp(vector<vector<int>>& capacity, int s, int t) {
-    int V = capacity.size();
-    vector<vector<int>> adj(V);
-    for (int i = 0; i < V; i++)
-        for (int j = 0; j < V; j++)
-            if (capacity[i][j] > 0) adj[i].push_back(j);
+void printHuffCodes(HuffNode* root, string str) {
+    if (!root) return;
+    if (root->ch != '#') cout << root->ch << ": " << str << endl;
+    printHuffCodes(root->left, str + "0");
+    printHuffCodes(root->right, str + "1");
+}
 
-    int max_flow = 0;
-    vector<int> parent(V);
-    while (true) {
-        fill(parent.begin(), parent.end(), -1);
-        queue<pair<int, int>> q;
-        q.push({s, INT_MAX});
-        parent[s] = -2;
+void huffmanCodes(vector<pair<char, int>> freqTable) {
+    priority_queue<HuffNode*, vector<HuffNode*>, compareHuff> pq;
+    for (auto &p : freqTable)
+        pq.push(new HuffNode(p.first, p.second));
 
-        while (!q.empty()) {
-            int cur = q.front().first;
-            int flow = q.front().second;
-            q.pop();
+    while (pq.size() > 1) {
+        HuffNode* l = pq.top(); pq.pop();
+        HuffNode* r = pq.top(); pq.pop();
+        HuffNode* merged = new HuffNode('#', l->freq + r->freq);
+        merged->left = l;
+        merged->right = r;
+        pq.push(merged);
+    }
 
-            for (int next : adj[cur]) {
-                if (parent[next] == -1 && capacity[cur][next] > 0) {
-                    parent[next] = cur;
-                    int new_flow = min(flow, capacity[cur][next]);
-                    if (next == t) {
-                        max_flow += new_flow;
-                        int curr = t;
-                        while (curr != s) {
-                            int prev = parent[curr];
-                            capacity[prev][curr] -= new_flow;
-                            capacity[curr][prev] += new_flow;
-                            curr = prev;
-                        }
-                        return max_flow;
-                    }
-                    q.push({next, new_flow});
+    printHuffCodes(pq.top(), "");
+}
+
+// 5. Rabin-Karp Algorithm for Pattern Matching
+// Time: O(n + m), Space: O(1)
+#define d 256
+#define q 101
+void rabinKarp(string pat, string txt) {
+    int M = pat.length(), N = txt.length();
+    int p = 0, t = 0, h = 1;
+
+    for (int i = 0; i < M - 1; i++) h = (h * d) % q;
+
+    for (int i = 0; i < M; i++) {
+        p = (d * p + pat[i]) % q;
+        t = (d * t + txt[i]) % q;
+    }
+
+    for (int i = 0; i <= N - M; i++) {
+        if (p == t) {
+            bool match = true;
+            for (int j = 0; j < M; j++)
+                if (txt[i + j] != pat[j]) {
+                    match = false;
+                    break;
                 }
-            }
+            if (match) cout << "Pattern found at index " << i << endl;
         }
-        return max_flow;
-    }
-}
-
-// Generate Binary Strings with Hamming Distance d
-void generateBinaryStrings(string S, int d, int index, int flipped) {
-    if (flipped == d) {
-        cout << S << endl;
-        return;
-    }
-    if (index >= S.size()) return;
-
-    generateBinaryStrings(S, d, index + 1, flipped);
-    S[index] = (S[index] == '0') ? '1' : '0';
-    generateBinaryStrings(S, d, index + 1, flipped + 1);
-}
-
-// Subset Sum Partition (Backtracking)
-bool canPartition(vector<int>& nums, int index, int sum, int total) {
-    if (sum * 2 == total) return true;
-    if (sum > total / 2 || index >= nums.size()) return false;
-
-    return canPartition(nums, index + 1, sum + nums[index], total) || canPartition(nums, index + 1, sum, total);
-}
-
-bool subsetSumPartition(vector<int>& nums) {
-    int total = accumulate(nums.begin(), nums.end(), 0);
-    if (total % 2 != 0) return false;
-    return canPartition(nums, 0, 0, total);
-}
-
-// Magic Square Generator (Backtracking)
-void generateMagicSquare(vector<vector<int>>& grid, int i, int j, int n) {
-    if (i == n) {
-        for (auto& row : grid) {
-            for (int x : row) cout << x << " ";
-            cout << endl;
+        if (i < N - M) {
+            t = (d * (t - txt[i] * h) + txt[i + M]) % q;
+            if (t < 0) t = (t + q);
         }
-        cout << endl;
-        return;
-    }
-    for (int num = 1; num <= n * n; num++) {
-        grid[i][j] = num;
-        generateMagicSquare(grid, i + (j + 1) / n, (j + 1) % n, n);
-        grid[i][j] = 0;
     }
 }
 
-// Find Sum Combinations (Backtracking)
-void findCombinations(vector<int>& nums, int target, int index, vector<int>& current) {
-    if (target == 0) {
-        for (int num : current) cout << num << " ";
-        cout << endl;
-        return;
-    }
-    if (index >= nums.size() || target < 0) return;
+// 6. Karp-Rabin (Simplified Rolling Hash Version for Comparison)
+// Time: O(n + m), Space: O(1)
+int karpRollingHash(string txt, string pat) {
+    int m = pat.size();
+    int n = txt.size();
+    int hash_pat = 0, hash_txt = 0, h = 1, d = 256, q = 101;
 
-    findCombinations(nums, target, index + 1, current);
-    current.push_back(nums[index]);
-    findCombinations(nums, target - nums[index], index + 1, current);
-    current.pop_back();
+    for (int i = 0; i < m - 1; i++) h = (h * d) % q;
+    for (int i = 0; i < m; i++) {
+        hash_pat = (d * hash_pat + pat[i]) % q;
+        hash_txt = (d * hash_txt + txt[i]) % q;
+    }
+
+    for (int i = 0; i <= n - m; i++) {
+        if (hash_pat == hash_txt) {
+            if (txt.substr(i, m) == pat) return i;
+        }
+        if (i < n - m) {
+            hash_txt = (d * (hash_txt - txt[i] * h) + txt[i + m]) % q;
+            if (hash_txt < 0) hash_txt = (hash_txt + q);
+        }
+    }
+    return -1;
 }
 
-// -------------------- MAIN FUNCTION FOR TESTING --------------------
+// 7. String Compression (like s.c)
+// Time: O(n), Space: O(n)
+string compressString(string s) {
+    string result = "";
+    int count = 1;
+    for (int i = 1; i <= s.length(); i++) {
+        if (s[i] == s[i - 1]) {
+            count++;
+        } else {
+            result += s[i - 1] + to_string(count);
+            count = 1;
+        }
+    }
+    return result;
+}
+
+// 8. Toggle Case (like t.cc)
+// Time: O(n), Space: O(1)
+string toggleCase(string s) {
+    for (char &ch : s) {
+        if (islower(ch)) ch = toupper(ch);
+        else if (isupper(ch)) ch = tolower(ch);
+    }
+    return s;
+}
+
+// Sample main to demonstrate all
 int main() {
-    // 1. Max Flow (Ford-Fulkerson)
-    MaxFlow g(6);
-    g.addEdge(0, 1, 30);
-    g.addEdge(0, 2, 20);
-    g.addEdge(1, 3, 25);
-    g.addEdge(2, 3, 10);
-    g.addEdge(3, 5, 30);
-    cout << "Max Flow: " << g.fordFulkerson(0, 5) << endl;
+    // Coin Change
+    int coins[] = {1, 2, 5, 10, 20, 50, 100, 500, 2000};
+    int n = sizeof(coins)/sizeof(coins[0]);
+    minCoinChange(coins, n, 93);
 
-    // 2. Hamming Distance Binary Strings
-    string S = "1010";
-    int d = 2;
-    cout << "Binary Strings with Hamming Distance " << d << ":" << endl;
-    generateBinaryStrings(S, d, 0, 0);
+    // Fractional Knapsack
+    vector<Item> items = {{60, 10}, {100, 20}, {120, 30}};
+    cout << "Max value in Knapsack = " << fractionalKnapsack(50, items) << endl;
 
-    // 3. Subset Sum Partition
-    vector<int> nums = {1, 5, 11, 5};
-    cout << "Partition Possible: " << (subsetSumPartition(nums) ? "YES" : "NO") << endl;
+    // Activity Selection
+    vector<Activity> acts = {{1, 3}, {2, 5}, {0, 6}, {8, 9}, {5, 9}, {5, 7}, {3, 4}};
+    activitySelection(acts);
 
-    // 4. Magic Square
-    int n = 3;
-    vector<vector<int>> grid(n, vector<int>(n, 0));
-    cout << "Magic Square of Order " << n << ":" << endl;
-    generateMagicSquare(grid, 0, 0, n);
+    // Huffman Coding
+    vector<pair<char, int>> freq = {{'a', 5}, {'b', 9}, {'c', 12}, {'d', 13}, {'e', 16}, {'f', 45}};
+    huffmanCodes(freq);
 
-    // 5. Sum Combinations
-    vector<int> numbers = {2, 3, 6, 7, 2, 2};
-    cout << "Sum Combinations for Target 7:" << endl;
-    vector<int> current;
-    findCombinations(numbers, 7, 0, current);
+    // Rabin-Karp Pattern Matching
+    string txt = "GEEKS FOR GEEKS";
+    string pat = "GEEK";
+    rabinKarp(pat, txt);
+
+    // Karp-Rabin (Rolling Hash)
+    int foundIdx = karpRollingHash("hellohelloworld", "world");
+    cout << "Pattern found at index (Karp Hash): " << foundIdx << endl;
+
+    // String Compression
+    cout << "Compressed: " << compressString("aaabbbcccaaa") << endl;
+
+    // Toggle Case
+    cout << "Toggle Case: " << toggleCase("aBcDeF") << endl;
 
     return 0;
 }
